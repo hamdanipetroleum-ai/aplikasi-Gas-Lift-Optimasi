@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas Lift Comprehensive Optimizer & Valve Spacing</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                            900: '#0a3651'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- MathJax for LaTeX mathematical rendering -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* Custom scrollbar & aesthetic touches */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .tab-btn.active {
+            border-bottom: 3px solid #0284c7;
+            color: #38bdf8;
+            font-weight: 600;
+            background-color: rgba(2, 132, 199, 0.1);
+        }
+        
+        /* Gas bubble animation */
+        @keyframes bubbleUp {
+            0% { transform: translateY(0) scale(0.7); opacity: 0.2; }
+            50% { opacity: 0.9; }
+            100% { transform: translateY(-120px) scale(1.1); opacity: 0; }
+        }
+        .animated-bubble {
+            animation: bubbleUp 2.5s infinite ease-in-out;
+        }
+        .animated-bubble-2 {
+            animation: bubbleUp 2s infinite ease-in-out 0.8s;
+        }
+        .animated-bubble-3 {
+            animation: bubbleUp 3s infinite ease-in-out 1.5s;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-50 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-sky-600/20 text-sky-400 rounded-lg border border-sky-500/30">
+                    <i data-lucide="gauge" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-sky-400 via-indigo-300 to-emerald-400 bg-clip-text text-transparent">
+                        Gas Lift Comprehensive Optimizer
+                    </h1>
+                    <p class="text-xs text-slate-400">
+                        Optimasi Laju Produksi ($Q_o$), Sensitivitas Injeksi Gas ($Q_{gi}$), Valve Spacing, & Allocation
+                    </p>
+                </div>
+            </div>
+
+            <!-- Quick Global Controls -->
+            <div class="flex items-center gap-2">
+                <button onclick="resetDefaults()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs flex items-center gap-1.5 transition border border-slate-700">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Default
+                </button>
+                <button onclick="exportReport()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-lg shadow-sky-600/20">
+                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i> Cetak / Export Laporan
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto w-full px-4 py-6 flex-1 flex flex-col gap-6">
+
+        <!-- Tab Navigation Bar -->
+        <nav class="flex border-b border-slate-800 bg-slate-900/60 p-1 rounded-xl gap-1 overflow-x-auto text-xs md:text-sm">
+            <button onclick="switchTab('glpc')" id="tab-glpc" class="tab-btn active flex items-center gap-2 px-4 py-2.5 rounded-lg whitespace-nowrap text-slate-400 hover:text-slate-200 transition">
+                <i data-lucide="line-chart" class="w-4 h-4 text-sky-400"></i> MODUL 1: GLPC ($Q_o$ vs $Q_{gi}$)
+            </button>
+            <button onclick="switchTab('valves')" id="tab-valves" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg whitespace-nowrap text-slate-400 hover:text-slate-200 transition">
+                <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i> MODUL 2: Valve Spacing & $D_{inj}$
+            </button>
+            <button onclick="switchTab('traverse')" id="tab-traverse" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg whitespace-nowrap text-slate-400 hover:text-slate-200 transition">
+                <i data-lucide="trending-down" class="w-4 h-4 text-emerald-400"></i> MODUL 3: Traverse Tekanan
+            </button>
+            <button onclick="switchTab('nodal')" id="tab-nodal" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg whitespace-nowrap text-slate-400 hover:text-slate-200 transition">
+                <i data-lucide="activity" class="w-4 h-4 text-purple-400"></i> MODUL 4: Nodal Analysis (IPR vs VLP)
+            </button>
+            <button onclick="switchTab('schematic')" id="tab-schematic" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg whitespace-nowrap text-slate-400 hover:text-slate-200 transition">
+                <i data-lucide="cylinder" class="w-4 h-4 text-rose-400"></i> MODUL 5: Skematik Sumur (SVG)
+            </button>
+            <button onclick="switchTab('multiwell')" id="tab-multiwell" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg whitespace-nowrap text-slate-400 hover:text-slate-200 transition">
+                <i data-lucide="share-2" class="w-4 h-4 text-indigo-400"></i> MODUL 6: Multi-Well Optimizer
+            </button>
+            <button onclick="switchTab('theory')" id="tab-theory" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg whitespace-nowrap text-slate-400 hover:text-slate-200 transition">
+                <i data-lucide="book-open" class="w-4 h-4 text-teal-400"></i> MODUL 7: Teori & Rumus
+            </button>
+        </nav>
+
+        <!-- Top Global Parameter Control Panel -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
+                <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-4 h-4 text-sky-400"></i> Parameter Utama Input Sumur & Operasi
+                </h2>
+                <span class="text-xs text-sky-400 font-mono bg-sky-950/80 px-2.5 py-1 rounded border border-sky-800">
+                    Real-time Dynamic Recalculation
+                </span>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 text-xs">
+                <!-- Reservoir Pressure -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <label class="block text-slate-400 mb-1">Pr (psi)</label>
+                    <input type="number" id="inp_Pr" value="2800" step="50" onchange="updateAllCalculations()" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sky-300 font-mono focus:border-sky-500 focus:outline-none">
+                </div>
+
+                <!-- Productivity Index -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <label class="block text-slate-400 mb-1">PI / J (STB/d/psi)</label>
+                    <input type="number" id="inp_J" value="1.8" step="0.1" onchange="updateAllCalculations()" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sky-300 font-mono focus:border-sky-500 focus:outline-none">
+                </div>
+
+                <!-- Water Cut -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <label class="block text-slate-400 mb-1">Water Cut (%)</label>
+                    <input type="number" id="inp_WC" value="45" min="0" max="99" onchange="updateAllCalculations()" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sky-300 font-mono focus:border-sky-500 focus:outline-none">
+                </div>
+
+                <!-- Total Depth -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <label class="block text-slate-400 mb-1">Depth (TD, ft)</label>
+                    <input type="number" id="inp_TD" value="8000" step="100" onchange="updateAllCalculations()" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sky-300 font-mono focus:border-sky-500 focus:outline-none">
+                </div>
+
+                <!-- Kickoff Pressure -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <label class="block text-slate-400 mb-1">Pko (Kickoff, psi)</label>
+                    <input type="number" id="inp_Pko" value="1050" step="25" onchange="updateAllCalculations()" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono focus:border-amber-500 focus:outline-none">
+                </div>
+
+                <!-- Operating Pressure -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <label class="block text-slate-400 mb-1">Pso (Operating, psi)</label>
+                    <input type="number" id="inp_Pso" value="950" step="25" onchange="updateAllCalculations()" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-amber-300 font-mono focus:border-amber-500 focus:outline-none">
+                </div>
+
+                <!-- Wellhead Tubing Pressure -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <label class="block text-slate-400 mb-1">Pwh (Wellhead, psi)</label>
+                    <input type="number" id="inp_Pwh" value="120" step="10" onchange="updateAllCalculations()" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-emerald-300 font-mono focus:border-emerald-500 focus:outline-none">
+                </div>
+
+                <!-- Active Gas Injection Rate -->
+                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <label class="block text-slate-400 mb-1">Qgi Operating (Mscf/d)</label>
+                    <input type="number" id="inp_Qgi" value="850" step="50" onchange="updateAllCalculations()" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-purple-300 font-mono focus:border-purple-500 focus:outline-none">
+                </div>
+            </div>
+
+            <!-- Additional Secondary Gradients Settings Expandable -->
+            <details class="mt-3 text-xs border-t border-slate-800/80 pt-2">
+                <summary class="cursor-pointer text-slate-400 hover:text-sky-400 font-medium flex items-center gap-1 select-none">
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i> Parameter Gradien Fluida & Gas Injeksi (Lanjutan)
+                </summary>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2 pt-2 bg-slate-950/50 p-2.5 rounded-lg">
+                    <div>
+                        <label class="block text-slate-400 mb-1">gfs (Unloading Grad., psi/ft)</label>
+                        <input type="number" id="inp_gfs" value="0.465" step="0.005" onchange="updateAllCalculations()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">gff (Flowing Grad., psi/ft)</label>
+                        <input type="number" id="inp_gff" value="0.320" step="0.005" onchange="updateAllCalculations()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">ggas (Gas Grad., psi/ft)</label>
+                        <input type="number" id="inp_ggas" value="0.022" step="0.001" onchange="updateAllCalculations()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Pressure Drop Valve (psi)</label>
+                        <input type="number" id="inp_dpvalve" value="50" step="5" onchange="updateAllCalculations()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                    </div>
+                </div>
+            </details>
+        </div>
+
+        <!-- MODULE CONTENTS CONTAINER -->
+
+        <!-- MODULE 1: GLPC & Sensitivities -->
+        <div id="mod-glpc" class="module-tab space-y-6">
+            <!-- Summary KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-slate-900 border border-sky-500/30 rounded-xl p-4 flex items-center gap-4 shadow-lg">
+                    <div class="p-3 bg-sky-500/10 text-sky-400 rounded-lg border border-sky-500/20">
+                        <i data-lucide="trophy" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Laju Minyak Maksimum ($Q_{o\_max}$)</p>
+                        <h3 id="kpi_Qo_max" class="text-xl font-bold text-sky-400 font-mono">0 BOPD</h3>
+                        <p class="text-[10px] text-slate-500">Peak Optimum Performance</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-emerald-500/30 rounded-xl p-4 flex items-center gap-4 shadow-lg">
+                    <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/20">
+                        <i data-lucide="flame" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Injeksi Gas Optimum ($Q_{gi\_opt}$)</p>
+                        <h3 id="kpi_Qgi_opt" class="text-xl font-bold text-emerald-400 font-mono">0 Mscf/d</h3>
+                        <p class="text-[10px] text-slate-500">Economic Gas Cutoff Point</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-purple-500/30 rounded-xl p-4 flex items-center gap-4 shadow-lg">
+                    <div class="p-3 bg-purple-500/10 text-purple-400 rounded-lg border border-purple-500/20">
+                        <i data-lucide="activity" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Status Operasi Injeksi Saat Ini</p>
+                        <h3 id="kpi_current_status" class="text-lg font-bold text-purple-300">Optimum</h3>
+                        <p id="kpi_current_status_sub" class="text-[10px] text-slate-400">Qo = 0 BOPD</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-amber-500/30 rounded-xl p-4 flex items-center gap-4 shadow-lg">
+                    <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg border border-amber-500/20">
+                        <i data-lucide="map-pin" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400">Kedalaman Injeksi Maks ($D_{inj}$)</p>
+                        <h3 id="kpi_Dinj" class="text-xl font-bold text-amber-400 font-mono">0 ft</h3>
+                        <p class="text-[10px] text-slate-500">Max Reachable Operating Point</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GLPC Main Chart -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-100 flex items-center gap-2">
+                            <i data-lucide="line-chart" class="w-5 h-5 text-sky-400"></i> Kurva Kinerja Gas Lift (Gas Lift Performance Curve - GLPC)
+                        </h3>
+                        <p class="text-xs text-slate-400">
+                            Memetakan sensitivitas Laju Produksi Minyak ($Q_o$) terhadap Penambahan Laju Injeksi Gas ($Q_{gi}$)
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <span class="flex items-center gap-1 text-sky-400"><span class="w-3 h-3 bg-sky-500/30 border border-sky-400 rounded-full inline-block"></span> Zone Under-injection</span>
+                        <span class="flex items-center gap-1 text-emerald-400"><span class="w-3 h-3 bg-emerald-500/30 border border-emerald-400 rounded-full inline-block"></span> Optimum Zone</span>
+                        <span class="flex items-center gap-1 text-rose-400"><span class="w-3 h-3 bg-rose-500/30 border border-rose-400 rounded-full inline-block"></span> Over-injection (Friction Penalty)</span>
+                    </div>
+                </div>
+
+                <div class="relative h-[380px] w-full">
+                    <canvas id="chartGLPC"></canvas>
+                </div>
+            </div>
+
+            <!-- Sensitivity Matrix Table -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i> Matriks Sensitivitas $Q_o$ (BOPD) vs Injeksi Gas ($Q_{gi}$) & Water Cut (WC)
+                    </h3>
+                    <span class="text-xs text-slate-400">Pr = <span id="sens_pr_label" class="text-sky-300 font-mono">2800</span> psi</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left text-slate-300 border-collapse">
+                        <thead class="text-[11px] uppercase bg-slate-950 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="p-2.5 border-r border-slate-800">Water Cut \ $Q_{gi}$ (Mscf/d)</th>
+                                <th class="p-2.5 text-center font-mono">200</th>
+                                <th class="p-2.5 text-center font-mono">400</th>
+                                <th class="p-2.5 text-center font-mono">600</th>
+                                <th class="p-2.5 text-center font-mono">800</th>
+                                <th class="p-2.5 text-center font-mono text-emerald-400">1000</th>
+                                <th class="p-2.5 text-center font-mono">1200</th>
+                                <th class="p-2.5 text-center font-mono">1500</th>
+                                <th class="p-2.5 text-center font-mono">2000</th>
+                            </tr>
+                        </thead>
+                        <tbody id="glpc_matrix_body" class="divide-y divide-slate-800 font-mono">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 2: Valve Spacing & Dinj -->
+        <div id="mod-valves" class="module-tab hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Input Breakdown & Calculation Principles -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-amber-400 flex items-center gap-2 mb-2">
+                            <i data-lucide="layers" class="w-5 h-5"></i> Penentuan Kedalaman Valve Spacing
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+                            Penentuan kedalaman Unloading Valve ($D_1, D_2, D_3 \dots$) dirancang agar tekanan casing $P_{ko}$ & $P_{so}$ dapat memindahkan fluid kill-mud ($g_{fs}$) secara bertahap hingga mencapai titik injeksi maksimum ($D_{inj}$).
+                        </p>
+
+                        <div class="space-y-3 text-xs bg-slate-950 p-3.5 rounded-lg border border-slate-800 font-mono">
+                            <div class="flex justify-between border-b border-slate-800/80 pb-1.5">
+                                <span class="text-slate-400">Tekanan Kickoff ($P_{ko}$):</span>
+                                <span id="val_pko" class="text-amber-400">1050 psi</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800/80 pb-1.5">
+                                <span class="text-slate-400">Tekanan Operasi ($P_{so}$):</span>
+                                <span id="val_pso" class="text-amber-400">950 psi</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800/80 pb-1.5">
+                                <span class="text-slate-400">Gradien Unloading ($g_{fs}$):</span>
+                                <span id="val_gfs" class="text-slate-300">0.465 psi/ft</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800/80 pb-1.5">
+                                <span class="text-slate-400">Gradien Flowing ($g_{ff}$):</span>
+                                <span id="val_gff" class="text-slate-300">0.320 psi/ft</span>
+                            </div>
+                            <div class="flex justify-between border-b border-slate-800/80 pb-1.5">
+                                <span class="text-slate-400">Gradien Gas Injeksi ($g_{gas}$):</span>
+                                <span id="val_ggas" class="text-slate-300">0.022 psi/ft</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Formula Valve 1 ($D_1$):</span>
+                                <span class="text-sky-300">(Pko - Pwh) / gfs</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-amber-950/30 border border-amber-800/40 rounded-lg text-xs text-amber-200 flex items-start gap-2">
+                        <i data-lucide="info" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+                        <span>
+                            Operating Injection Valve terletak pada kedalaman **$D_{inj}$**, yaitu kedalaman terdalam tempat tekanan casing masih mampu mengatasi tekanan tubing ditambah safety margin.
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Right Spacing Sequence Table -->
+                <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                    <h3 class="text-sm font-bold text-slate-100 mb-3 flex items-center justify-between">
+                        <span class="flex items-center gap-2">
+                            <i data-lucide="list-ordered" class="w-4 h-4 text-amber-400"></i> Tabel Urutan Kedalaman & Spesifikasi Valve Gas Lift
+                        </span>
+                        <span class="text-xs bg-amber-950/80 text-amber-300 px-2.5 py-1 rounded border border-amber-800 font-mono">
+                            API Recommended Practice 11V
+                        </span>
+                    </h3>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300 border-collapse">
+                            <thead class="text-[11px] uppercase bg-slate-950 text-slate-400 border-b border-slate-800">
+                                <tr>
+                                    <th class="p-2.5">Valve #</th>
+                                    <th class="p-2.5">Kedalaman (ft)</th>
+                                    <th class="p-2.5">P casing (psi)</th>
+                                    <th class="p-2.5">P tubing (psi)</th>
+                                    <th class="p-2.5">Delta P Valve (psi)</th>
+                                    <th class="p-2.5">Status Valve</th>
+                                </tr>
+                            </thead>
+                            <tbody id="valve_table_body" class="divide-y divide-slate-800 font-mono">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 3: Pressure Traverse Curve -->
+        <div id="mod-traverse" class="module-tab hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-emerald-400 flex items-center gap-2">
+                            <i data-lucide="trending-down" class="w-5 h-5"></i> Profil Tekanan vs Kedalaman (Traverse Curve)
+                        </h3>
+                        <p class="text-xs text-slate-400">
+                            Grafik Profil Tekanan Casing vs Tubing Unloading & Flowing dengan Sumbu Depth Terbalik (0 ft di atas)
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <span class="flex items-center gap-1 text-amber-400"><span class="w-3 h-0.5 bg-amber-400 inline-block"></span> Casing Pressure Traverse</span>
+                        <span class="flex items-center gap-1 text-sky-400"><span class="w-3 h-0.5 bg-sky-400 inline-block"></span> Tubing Unloading Traverse</span>
+                        <span class="flex items-center gap-1 text-emerald-400"><span class="w-3 h-0.5 bg-emerald-400 inline-block"></span> Flowing Tubing Traverse</span>
+                    </div>
+                </div>
+
+                <div class="relative h-[500px] w-full">
+                    <canvas id="chartTraverse"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 4: Nodal Analysis (IPR vs VLP) -->
+        <div id="mod-nodal" class="module-tab hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-purple-400 flex items-center gap-2">
+                            <i data-lucide="activity" class="w-5 h-5"></i> Dynamic Nodal Analysis System (IPR Vogel vs VLP)
+                        </h3>
+                        <p class="text-xs text-slate-400">
+                            Perpotongan Kurva IPR Reservoir dengan Kurva Lift VLP pada Variasi Laju Injeksi Gas ($Q_{gi}$)
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs font-mono">
+                        <span class="bg-slate-950 text-purple-300 px-3 py-1 rounded border border-purple-800">
+                            Operating Point: <span id="nodal_op_point" class="text-purple-400 font-bold">0 BOPD @ 0 psi</span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="relative h-[440px] w-full">
+                    <canvas id="chartNodal"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 5: Well Schematic (SVG) -->
+        <div id="mod-schematic" class="module-tab hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- SVG Well Diagram -->
+                <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl flex flex-col items-center">
+                    <h3 class="text-sm font-bold text-rose-400 mb-2 flex items-center gap-2 self-start">
+                        <i data-lucide="cylinder" class="w-4 h-4"></i> Skematik Penampang Sumur Gas Lift Interaktif
+                    </h3>
+                    <p class="text-xs text-slate-400 mb-4 self-start">
+                        Posisi presisi Unloading Valve ($D_1 \dots D_n$), Operating Injection Valve ($D_{inj}$), Packer, dan Perforasi
+                    </p>
+
+                    <!-- SVG Container -->
+                    <div id="well_svg_wrapper" class="w-full max-w-lg bg-slate-950 border border-slate-800 rounded-xl p-4 flex justify-center">
+                        <svg id="wellSVG" viewBox="0 0 320 600" class="w-full h-[520px]">
+                            <!-- Defined dynamically in JS -->
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Right Schematic Details Panel -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+                    <h3 class="text-sm font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center gap-2">
+                        <i data-lucide="info" class="w-4 h-4 text-sky-400"></i> Informasi Komponen Sumur
+                    </h3>
+
+                    <div class="space-y-3 text-xs">
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                            <span class="text-slate-400 block mb-1">Kedalaman Total / Perforasi:</span>
+                            <span id="sch_td" class="text-sky-300 font-mono text-sm font-bold">8000 ft</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                            <span class="text-slate-400 block mb-1">Titik Injeksi Aktif ($D_{inj}$):</span>
+                            <span id="sch_dinj" class="text-amber-400 font-mono text-sm font-bold">0 ft</span>
+                            <p class="text-[10px] text-slate-500 mt-1">Gas injeksi diinjeksikan secara terus-menerus melalui mandril ini.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                            <span class="text-slate-400 block mb-1">Jumlah Unloading Valves:</span>
+                            <span id="sch_valves_count" class="text-slate-200 font-mono text-sm font-bold">0 Valve</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                            <span class="text-slate-400 block mb-1">Gas Injection Bubbles Animation:</span>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="w-3 h-3 rounded-full bg-purple-400 animate-ping"></span>
+                                <span class="text-purple-300 text-[11px]">Gas mengalir dari Anulus ke Tubing</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 6: Multi-Well Optimizer -->
+        <div id="mod-multiwell" class="module-tab hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-indigo-400 flex items-center gap-2">
+                            <i data-lucide="share-2" class="w-5 h-5"></i> Multi-Well Gas Allocation Optimization Engine
+                        </h3>
+                        <p class="text-xs text-slate-400">
+                            Alokasi pasokan gas injeksi terbatas ke 3 sumur berbasis *Marginal Oil Gain* ($\frac{dQ_o}{dQ_{gi}}$) untuk memaksimalkan Total Produksi Minyak
+                        </p>
+                    </div>
+
+                    <div class="flex items-center gap-3 bg-slate-950 p-2 rounded-lg border border-slate-800 text-xs">
+                        <label class="text-slate-400">Total Gas Injeksi Tersedia:</label>
+                        <input type="number" id="inp_total_gas" value="3000" step="100" onchange="runMultiWellOptimization()"
+                            class="w-28 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-indigo-300 font-mono font-bold focus:outline-none">
+                        <span class="text-slate-400">Mscf/d</span>
+                    </div>
+                </div>
+
+                <!-- 3 Well Inputs & Allocation Results Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- Well A -->
+                    <div class="bg-slate-950 border border-sky-500/30 rounded-xl p-4 space-y-3">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <h4 class="font-bold text-sky-400 text-sm">Sumur A (High PI)</h4>
+                            <span class="text-[10px] bg-sky-950 text-sky-300 px-2 py-0.5 rounded border border-sky-800">Well-01</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <label class="text-slate-400 block mb-0.5">Pr (psi)</label>
+                                <input type="number" id="wellA_Pr" value="3000" onchange="runMultiWellOptimization()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-0.5">PI / J</label>
+                                <input type="number" id="wellA_J" value="2.2" step="0.1" onchange="runMultiWellOptimization()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                            </div>
+                        </div>
+                        <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1 font-mono text-xs">
+                            <div class="flex justify-between"><span class="text-slate-400">Alokasi Qgi:</span><span id="allocA_qgi" class="text-sky-300 font-bold">0 Mscf/d</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Hasil Qo:</span><span id="allocA_qo" class="text-emerald-400 font-bold">0 BOPD</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Well B -->
+                    <div class="bg-slate-950 border border-indigo-500/30 rounded-xl p-4 space-y-3">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <h4 class="font-bold text-indigo-400 text-sm">Sumur B (Medium PI)</h4>
+                            <span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800">Well-02</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <label class="text-slate-400 block mb-0.5">Pr (psi)</label>
+                                <input type="number" id="wellB_Pr" value="2600" onchange="runMultiWellOptimization()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-0.5">PI / J</label>
+                                <input type="number" id="wellB_J" value="1.6" step="0.1" onchange="runMultiWellOptimization()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                            </div>
+                        </div>
+                        <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1 font-mono text-xs">
+                            <div class="flex justify-between"><span class="text-slate-400">Alokasi Qgi:</span><span id="allocB_qgi" class="text-indigo-300 font-bold">0 Mscf/d</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Hasil Qo:</span><span id="allocB_qo" class="text-emerald-400 font-bold">0 BOPD</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Well C -->
+                    <div class="bg-slate-950 border border-purple-500/30 rounded-xl p-4 space-y-3">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                            <h4 class="font-bold text-purple-400 text-sm">Sumur C (Low PI / High WC)</h4>
+                            <span class="text-[10px] bg-purple-950 text-purple-300 px-2 py-0.5 rounded border border-purple-800">Well-03</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <label class="text-slate-400 block mb-0.5">Pr (psi)</label>
+                                <input type="number" id="wellC_Pr" value="2200" onchange="runMultiWellOptimization()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-0.5">PI / J</label>
+                                <input type="number" id="wellC_J" value="1.0" step="0.1" onchange="runMultiWellOptimization()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-200 font-mono">
+                            </div>
+                        </div>
+                        <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 space-y-1 font-mono text-xs">
+                            <div class="flex justify-between"><span class="text-slate-400">Alokasi Qgi:</span><span id="allocC_qgi" class="text-purple-300 font-bold">0 Mscf/d</span></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Hasil Qo:</span><span id="allocC_qo" class="text-emerald-400 font-bold">0 BOPD</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Combined Summary Card -->
+                <div class="bg-slate-950 p-4 rounded-xl border border-indigo-500/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-indigo-500/20 text-indigo-400 rounded-lg">
+                            <i data-lucide="layers" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <span class="text-xs text-slate-400 block">Total Produksi Minyak Maksimum Gabungan</span>
+                            <h3 id="multiwell_total_qo" class="text-2xl font-bold text-emerald-400 font-mono">0 BOPD</h3>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-400 text-right">
+                        <span>Efisiensi Alokasi Injeksi: <strong class="text-sky-400">100% Total Supply Allocated</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE 7: Theory & Formulas -->
+        <div id="mod-theory" class="module-tab hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-6">
+                <div class="border-b border-slate-800 pb-3">
+                    <h3 class="text-lg font-bold text-teal-400 flex items-center gap-2">
+                        <i data-lucide="book-open" class="w-5 h-5"></i> Dokumentasi Teori & Persamaan Matematika Gas Lift
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-1">
+                        Formulasi standar teknik perminyakan untuk analisis Gas Lift Performance, Valve Spacing, dan Multi-well Marginal Gain
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-slate-300">
+                    <!-- Section 1 -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <h4 class="font-bold text-sky-400 border-b border-slate-800 pb-1">1. Vogel Inflow Performance Relationship (IPR)</h4>
+                        <p class="text-xs text-slate-400">
+                            Digunakan untuk menentukan kapasitas aliran fluida dari reservoir ke dasar sumur:
+                        </p>
+                        <div class="bg-slate-900 p-3 rounded text-center font-mono text-sky-300">
+                            $$Q_o = Q_{max} \cdot \left[ 1 - 0.2 \left(\frac{P_{wf}}{P_r}\right) - 0.8 \left(\frac{P_{wf}}{P_r}\right)^2 \right]$$
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            di mana $Q_{max} = \frac{J \cdot P_r}{1.8}$, $P_r$ adalah Tekanan Reservoir, dan $P_{wf}$ adalah Flowing Bottomhole Pressure.
+                        </p>
+                    </div>
+
+                    <!-- Section 2 -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <h4 class="font-bold text-amber-400 border-b border-slate-800 pb-1">2. Penentuan Spacing Unloading Valve Pertama ($D_1$)</h4>
+                        <p class="text-xs text-slate-400">
+                            Kedalaman valve pertama ditentukan dari kemampuan tekanan Kickoff Casing ($P_{ko}$) menekan sumur berisi cairan unloading ($g_{fs}$):
+                        </p>
+                        <div class="bg-slate-900 p-3 rounded text-center font-mono text-amber-300">
+                            $$D_1 = \frac{P_{ko} - P_{wh}}{g_{fs}}$$
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            $P_{wh}$ = Tekanan Wellhead Tubing, $g_{fs}$ = Gradien cairan unloading (psi/ft).
+                        </p>
+                    </div>
+
+                    <!-- Section 3 -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <h4 class="font-bold text-emerald-400 border-b border-slate-800 pb-1">3. Penentuan Spacing Valve Berikutnya ($D_n$)</h4>
+                        <p class="text-xs text-slate-400">
+                            Urutan kedalaman valve $D_n$ dikalkulasikan secara iteratif berdasarkan penurunan tingkat fluida pasca-unloading valve sebelumnya:
+                        </p>
+                        <div class="bg-slate-900 p-3 rounded text-center font-mono text-emerald-300">
+                            $$D_n = D_{n-1} + \frac{P_{so} + (g_{gas} \cdot D_{n-1}) - P_{t(n-1)}}{g_{fs}}$$
+                        </div>
+                    </div>
+
+                    <!-- Section 4 -->
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <h4 class="font-bold text-indigo-400 border-b border-slate-800 pb-1">4. Multi-Well Optimization (Marginal Gain)</h4>
+                        <p class="text-xs text-slate-400">
+                            Alokasi gas injeksi optimal antar sumur dicapai saat turunan parsial (*marginal gain*) untuk semua sumur bernilai setara:
+                        </p>
+                        <div class="bg-slate-900 p-3 rounded text-center font-mono text-indigo-300">
+                            $$\frac{\partial Q_{oA}}{\partial Q_{giA}} = \frac{\partial Q_{oB}}{\partial Q_{giB}} = \frac{\partial Q_{oC}}{\partial Q_{giC}} = \lambda$$
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            Subjek terhadap constraint total pasokan gas: $\sum Q_{gi} \le Q_{gi\_total}$.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Global Variables & Chart Instances
+        let chartGLPCInstance = null;
+        let chartTraverseInstance = null;
+        let chartNodalInstance = null;
+
+        // Initialize Lucide icons on load
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initCharts();
+            updateAllCalculations();
+        });
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.module-tab').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            const targetMod = document.getElementById('mod-' + tabId);
+            const targetBtn = document.getElementById('tab-' + tabId);
+
+            if (targetMod) targetMod.classList.remove('hidden');
+            if (targetBtn) targetBtn.classList.add('active');
+
+            // Trigger chart resize / update on tab switch
+            setTimeout(() => {
+                if (chartGLPCInstance) chartGLPCInstance.resize();
+                if (chartTraverseInstance) chartTraverseInstance.resize();
+                if (chartNodalInstance) chartNodalInstance.resize();
+            }, 50);
+        }
+
+        // Helper to retrieve numerical inputs safely
+        function getVal(id) {
+            const el = document.getElementById(id);
+            return el ? parseFloat(el.value) || 0 : 0;
+        }
+
+        // Main Core Calculation Engine
+        function updateAllCalculations() {
+            const Pr = getVal('inp_Pr');
+            const J = getVal('inp_J');
+            const WC = getVal('inp_WC');
+            const TD = getVal('inp_TD');
+            const Pko = getVal('inp_Pko');
+            const Pso = getVal('inp_Pso');
+            const Pwh = getVal('inp_Pwh');
+            const QgiOp = getVal('inp_Qgi');
+            const gfs = getVal('inp_gfs');
+            const gff = getVal('inp_gff');
+            const ggas = getVal('inp_ggas');
+            const dpvalve = getVal('inp_dpvalve');
+
+            // 1. Calculate Valve Spacing & Dinj
+            const valveData = calculateValveSpacing(Pko, Pso, Pwh, gfs, gff, ggas, TD, dpvalve);
+            const Dinj = valveData.Dinj;
+
+            // Update Dinj KPI labels
+            document.getElementById('kpi_Dinj').innerText = Math.round(Dinj) + ' ft';
+            document.getElementById('sch_dinj').innerText = Math.round(Dinj) + ' ft';
+            document.getElementById('val_pko').innerText = Pko + ' psi';
+            document.getElementById('val_pso').innerText = Pso + ' psi';
+            document.getElementById('val_gfs').innerText = gfs + ' psi/ft';
+            document.getElementById('val_gff').innerText = gff + ' psi/ft';
+            document.getElementById('val_ggas').innerText = ggas + ' psi/ft';
+
+            // 2. Render Valve Table
+            renderValveTable(valveData.valves);
+
+            // 3. Compute GLPC Curve Data
+            const glpcData = calculateGLPC(Pr, J, WC, TD, Dinj, Pwh, gff);
+            renderGLPCChart(glpcData, QgiOp);
+            renderMatrixTable(Pr, J, TD, Dinj, Pwh, gff);
+
+            // Update GLPC KPIs
+            document.getElementById('kpi_Qo_max').innerText = Math.round(glpcData.Qo_max) + ' BOPD';
+            document.getElementById('kpi_Qgi_opt').innerText = Math.round(glpcData.Qgi_opt) + ' Mscf/d';
+
+            // Status for current operating Qgi
+            const currentQo = calculateQoFromQgi(QgiOp, Pr, J, WC, TD, Dinj, Pwh, gff);
+            let statusText = "Optimum Injection";
+            let statusClass = "text-emerald-400";
+
+            if (QgiOp < glpcData.Qgi_opt * 0.85) {
+                statusText = "Under-injection";
+                statusClass = "text-amber-400";
+            } else if (QgiOp > glpcData.Qgi_opt * 1.15) {
+                statusText = "Over-injection (Friction)";
+                statusClass = "text-rose-400";
+            }
+
+            const currentStatusEl = document.getElementById('kpi_current_status');
+            currentStatusEl.innerText = statusText;
+            currentStatusEl.className = 'text-lg font-bold ' + statusClass;
+            document.getElementById('kpi_current_status_sub').innerText = `Qo = ${Math.round(currentQo)} BOPD @ ${QgiOp} Mscf/d`;
+
+            // 4. Render Traverse Chart
+            renderTraverseChart(Pko, Pso, Pwh, gfs, gff, ggas, Dinj, TD, valveData.valves);
+
+            // 5. Render Nodal Analysis
+            renderNodalChart(Pr, J, WC, TD, Dinj, Pwh, gff, QgiOp);
+
+            // 6. Render SVG Schematic
+            renderWellSVG(TD, Dinj, valveData.valves);
+
+            // 7. Run Multi-Well Optimization
+            runMultiWellOptimization();
+            
+            // Re-render MathJax formula typesetting
+            if (window.MathJax && MathJax.typeset) {
+                MathJax.typeset();
+            }
+        }
+
+        // Valve Spacing Calculation Logic
+        function calculateValveSpacing(Pko, Pso, Pwh, gfs, gff, ggas, TD, dpvalve) {
+            const valves = [];
+            
+            // Valve 1 (D1)
+            let D1 = (Pko - Pwh) / gfs;
+            if (D1 > TD) D1 = TD - 200;
+            if (D1 < 100) D1 = 500;
+
+            let Pc1 = Pko + ggas * D1;
+            let Pt1 = Pwh + gff * D1;
+
+            valves.push({
+                num: 1,
+                depth: Math.round(D1),
+                Pc: Math.round(Pc1),
+                Pt: Math.round(Pt1),
+                dp: Math.round(Pc1 - Pt1),
+                status: 'Unloading Valve'
+            });
+
+            // Iterative spacing for subsequent valves
+            let currD = D1;
+            let count = 1;
+            let maxValves = 8;
+
+            while (currD < TD - 300 && count < maxValves) {
+                count++;
+                let prevPc = Pso + ggas * currD;
+                let prevPt = Pwh + gff * currD;
+
+                // Spacing formula to next valve
+                let nextD = currD + (prevPc - prevPt) / gfs;
+
+                if (nextD >= TD - 100 || nextD <= currD + 200) {
+                    break;
+                }
+
+                let Pc = Pso + ggas * nextD;
+                let Pt = Pwh + gff * nextD;
+
+                valves.push({
+                    num: count,
+                    depth: Math.round(nextD),
+                    Pc: Math.round(Pc),
+                    Pt: Math.round(Pt),
+                    dp: Math.round(Pc - Pt),
+                    status: 'Unloading Valve'
+                });
+
+                currD = nextD;
+            }
+
+            // Operating Valve at Dinj
+            // Dinj is the deepest depth where Pc - Pt >= dpvalve
+            let Dinj = currD;
+            valves[valves.length - 1].status = 'Operating Injection Valve';
+
+            return { valves, Dinj };
+        }
+
+        function renderValveTable(valves) {
+            const tbody = document.getElementById('valve_table_body');
+            tbody.innerHTML = '';
+
+            valves.forEach((v) => {
+                const tr = document.createElement('tr');
+                tr.className = v.status.includes('Operating') ? 'bg-amber-950/30 border-l-4 border-amber-400' : 'hover:bg-slate-800/50';
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold ${v.status.includes('Operating') ? 'text-amber-400' : 'text-slate-300'}">Valve #${v.num}</td>
+                    <td class="p-2.5 text-sky-300 font-bold">${v.depth} ft</td>
+                    <td class="p-2.5 text-amber-300">${v.Pc} psi</td>
+                    <td class="p-2.5 text-emerald-300">${v.Pt} psi</td>
+                    <td class="p-2.5 text-slate-300">${v.dp} psi</td>
+                    <td class="p-2.5">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${v.status.includes('Operating') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400'}">
+                            ${v.status}
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Calculate Qo from Qgi using hydraulic gradient model & Vogel IPR
+        function calculateQoFromQgi(Qgi, Pr, J, WC, TD, Dinj, Pwh, gff) {
+            if (Qgi <= 0) return 0;
+
+            // Gas lift gradient reduction above injection depth
+            // Higher Qgi reduces density, but very high Qgi adds friction term
+            let liftEffect = 1 / (1 + 0.0035 * Math.pow(Qgi, 0.85));
+            let frictionTerm = 0.00000008 * Math.pow(Qgi, 1.95);
+            let glift = gff * liftEffect + frictionTerm;
+
+            // Flowing Tubing Pressure at TD
+            let Pwf = Pwh + glift * Dinj + gff * (TD - Dinj);
+
+            if (Pwf >= Pr) return 0;
+
+            // Vogel IPR Calculation
+            let Qmax = (J * Pr) / 1.8;
+            let Qliquid = Qmax * (1 - 0.2 * (Pwf / Pr) - 0.8 * Math.pow(Pwf / Pr, 2));
+
+            if (Qliquid < 0) Qliquid = 0;
+
+            let Qo = Qliquid * (1 - WC / 100);
+            return Math.max(0, Qo);
+        }
+
+        // Generate full GLPC curve data
+        function calculateGLPC(Pr, J, WC, TD, Dinj, Pwh, gff) {
+            const labels = [];
+            const qoValues = [];
+
+            let Qo_max = 0;
+            let Qgi_opt = 0;
+
+            for (let qgi = 0; qgi <= 3000; qgi += 50) {
+                let qo = calculateQoFromQgi(qgi, Pr, J, WC, TD, Dinj, Pwh, gff);
+                labels.push(qgi);
+                qoValues.push(Math.round(qo));
+
+                if (qo > Qo_max) {
+                    Qo_max = qo;
+                    Qgi_opt = qgi;
+                }
+            }
+
+            return { labels, qoValues, Qo_max, Qgi_opt };
+        }
+
+        // Render Matrix Table for Sensitivity
+        function renderMatrixTable(Pr, J, TD, Dinj, Pwh, gff) {
+            const wcList = [10, 30, 45, 60, 80];
+            const qgiList = [200, 400, 600, 800, 1000, 1200, 1500, 2000];
+
+            document.getElementById('sens_pr_label').innerText = Pr;
+            const tbody = document.getElementById('glpc_matrix_body');
+            tbody.innerHTML = '';
+
+            wcList.forEach(wc => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40';
+
+                let rowHtml = `<td class="p-2.5 font-bold text-sky-400 border-r border-slate-800">WC = ${wc}%</td>`;
+
+                qgiList.forEach(qgi => {
+                    let qo = Math.round(calculateQoFromQgi(qgi, Pr, J, wc, TD, Dinj, Pwh, gff));
+                    let isOpt = qgi === 1000;
+                    rowHtml += `<td class="p-2.5 text-center ${isOpt ? 'bg-emerald-950/40 text-emerald-300 font-bold' : ''}">${qo}</td>`;
+                });
+
+                tr.innerHTML = rowHtml;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Chart Initialization
+        function initCharts() {
+            // 1. GLPC Chart
+            const ctxGLPC = document.getElementById('chartGLPC').getContext('2d');
+            chartGLPCInstance = new Chart(ctxGLPC, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Laju Produksi Minyak Qo (BOPD)',
+                            data: [],
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: (ctx) => `Qo: ${ctx.parsed.y} BOPD`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Laju Injeksi Gas Qgi (Mscf/d)', color: '#94a3b8' },
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Laju Produksi Minyak Qo (BOPD)', color: '#94a3b8' },
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+
+            // 2. Traverse Chart
+            const ctxTraverse = document.getElementById('chartTraverse').getContext('2d');
+            chartTraverseInstance = new Chart(ctxTraverse, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: 'Casing Pressure Traverse', data: [], borderColor: '#f59e0b', borderWidth: 2, tension: 0 },
+                        { label: 'Unloading Tubing Traverse', data: [], borderColor: '#38bdf8', borderWidth: 2, tension: 0 },
+                        { label: 'Flowing Tubing Traverse', data: [], borderColor: '#10b981', borderWidth: 2, tension: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Tekanan / Pressure (psi)', color: '#94a3b8' },
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Kedalaman / Depth (ft)', color: '#94a3b8' },
+                            reverse: true, // Inverted Y Axis for well depth
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+
+            // 3. Nodal Chart
+            const ctxNodal = document.getElementById('chartNodal').getContext('2d');
+            chartNodalInstance = new Chart(ctxNodal, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        { label: 'IPR Curve (Vogel Model)', data: [], borderColor: '#a855f7', borderWidth: 3, tension: 0.2 },
+                        { label: 'VLP (Operating Qgi)', data: [], borderColor: '#38bdf8', borderWidth: 2.5, tension: 0.1 },
+                        { label: 'VLP (Unassisted Natural Flow)', data: [], borderColor: '#64748b', borderWidth: 1.5, borderDash: [5, 5], tension: 0.1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Laju Alir Fluida Qliquid (STB/d)', color: '#94a3b8' },
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Flowing Bottomhole Pressure Pwf (psi)', color: '#94a3b8' },
+                            grid: { color: '#1e293b' },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+
+        // Render GLPC Chart Data
+        function renderGLPCChart(glpcData, currentQgi) {
+            chartGLPCInstance.data.labels = glpcData.labels;
+            chartGLPCInstance.data.datasets[0].data = glpcData.qoValues;
+            chartGLPCInstance.update();
+        }
+
+        // Render Traverse Curve Data
+        function renderTraverseChart(Pko, Pso, Pwh, gfs, gff, ggas, Dinj, TD, valves) {
+            // Casing Line Points
+            const casingData = [
+                { x: Pko, y: 0 },
+                { x: Math.round(Pko + ggas * Dinj), y: Math.round(Dinj) },
+                { x: Math.round(Pko + ggas * TD), y: Math.round(TD) }
+            ];
+
+            // Unloading Tubing Line Points
+            const unloadingData = [
+                { x: Pwh, y: 0 },
+                { x: Math.round(Pwh + gfs * TD), y: Math.round(TD) }
+            ];
+
+            // Flowing Tubing Line Points (kink at Dinj)
+            let liftEffect = 0.55; // gas lift lighter gradient above Dinj
+            let g_lifted = gff * liftEffect;
+
+            let Pt_dinj = Pwh + g_lifted * Dinj;
+            let Pt_td = Pt_dinj + gff * (TD - Dinj);
+
+            const flowingData = [
+                { x: Pwh, y: 0 },
+                { x: Math.round(Pt_dinj), y: Math.round(Dinj) },
+                { x: Math.round(Pt_td), y: Math.round(TD) }
+            ];
+
+            chartTraverseInstance.data.datasets[0].data = casingData;
+            chartTraverseInstance.data.datasets[1].data = unloadingData;
+            chartTraverseInstance.data.datasets[2].data = flowingData;
+            chartTraverseInstance.update();
+        }
+
+        // Render Dynamic Nodal Analysis
+        function renderNodalChart(Pr, J, WC, TD, Dinj, Pwh, gff, QgiOp) {
+            const iprData = [];
+            const vlpData = [];
+            const vlpNaturalData = [];
+
+            let Qmax = (J * Pr) / 1.8;
+
+            // Generate IPR Curve
+            for (let pwf = 0; pwf <= Pr; pwf += 100) {
+                let ql = Qmax * (1 - 0.2 * (pwf / Pr) - 0.8 * Math.pow(pwf / Pr, 2));
+                if (ql < 0) ql = 0;
+                iprData.push({ x: Math.round(ql), y: pwf });
+            }
+
+            // Generate VLP Curves
+            let liftEffect = 1 / (1 + 0.0035 * Math.pow(QgiOp, 0.85));
+            let glift = gff * liftEffect;
+
+            let minQo = 0;
+            let minPwf = 0;
+
+            for (let ql = 0; ql <= Qmax; ql += 100) {
+                // VLP with gas lift
+                let pwf_lift = Pwh + glift * Dinj + gff * (TD - Dinj) + (ql * 0.12);
+                vlpData.push({ x: ql, y: Math.round(pwf_lift) });
+
+                // VLP natural flow (no gas lift)
+                let pwf_nat = Pwh + gff * TD + (ql * 0.18);
+                vlpNaturalData.push({ x: ql, y: Math.round(pwf_nat) });
+
+                // Find operating point roughly
+                let qo_ipr = Qmax * (1 - 0.2 * (pwf_lift / Pr) - 0.8 * Math.pow(pwf_lift / Pr, 2)) * (1 - WC / 100);
+                if (Math.abs(ql - qo_ipr) < 150) {
+                    minQo = Math.round(qo_ipr);
+                    minPwf = Math.round(pwf_lift);
+                }
+            }
+
+            chartNodalInstance.data.datasets[0].data = iprData;
+            chartNodalInstance.data.datasets[1].data = vlpData;
+            chartNodalInstance.data.datasets[2].data = vlpNaturalData;
+            chartNodalInstance.update();
+
+            document.getElementById('nodal_op_point').innerText = `${minQo} BOPD @ ${minPwf} psi`;
+        }
+
+        // Render Interactive SVG Wellbore Schematic
+        function renderWellSVG(TD, Dinj, valves) {
+            const svg = document.getElementById('wellSVG');
+            document.getElementById('sch_td').innerText = TD + ' ft';
+            document.getElementById('sch_valves_count').innerText = valves.length + ' Valves Installed';
+
+            const scaleY = 480 / TD; // Scale height mapping to SVG coords
+
+            let svgContent = `
+                <!-- Background Well Shadow -->
+                <rect x="70" y="20" width="180" height="520" fill="#020617" rx="8"/>
+                
+                <!-- Casing Line Outer -->
+                <rect x="90" y="30" width="140" height="480" fill="none" stroke="#475569" stroke-width="4"/>
+                
+                <!-- Tubing Line Inner -->
+                <rect x="135" y="30" width="50" height="460" fill="none" stroke="#38bdf8" stroke-width="3"/>
+                <path d="M 135 30 L 125 15 L 195 15 L 185 30 Z" fill="#0284c7"/>
+
+                <!-- Packer at Depth -->
+                <rect x="92" y="${30 + (TD - 400) * scaleY}" width="43" height="18" fill="#e11d48"/>
+                <rect x="185" y="${30 + (TD - 400) * scaleY}" width="43" height="18" fill="#e11d48"/>
+                <text x="50" y="${38 + (TD - 400) * scaleY}" fill="#f43f5e" font-size="10" font-weight="bold">Packer</text>
+
+                <!-- Reservoir Perforations -->
+                <g fill="#f59e0b">
+                    <circle cx="85" cy="${30 + (TD - 150) * scaleY}" r="4"/>
+                    <circle cx="85" cy="${30 + (TD - 100) * scaleY}" r="4"/>
+                    <circle cx="235" cy="${30 + (TD - 150) * scaleY}" r="4"/>
+                    <circle cx="235" cy="${30 + (TD - 100) * scaleY}" r="4"/>
+                </g>
+                <text x="245" y="${35 + (TD - 125) * scaleY}" fill="#f59e0b" font-size="10">Perforations</text>
+            `;
+
+            // Draw Valves on Tubing Side
+            valves.forEach(v => {
+                let yPos = 30 + v.depth * scaleY;
+                let isOperating = v.status.includes('Operating');
+                let color = isOperating ? '#f59e0b' : '#38bdf8';
+
+                svgContent += `
+                    <!-- Valve Mandrel Icon -->
+                    <rect x="180" y="${yPos - 6}" width="12" height="12" fill="${color}" rx="2" stroke="#0f172a" stroke-width="1"/>
+                    <line x1="192" y1="${yPos}" x2="220" y2="${yPos}" stroke="${color}" stroke-width="1.5" stroke-dasharray="2,2"/>
+                    <text x="225" y="${yPos + 4}" fill="${color}" font-size="10" font-weight="bold">V${v.num} (${v.depth} ft)</text>
+                `;
+
+                // Add Gas Bubbles at Operating Injection Depth Dinj
+                if (isOperating) {
+                    svgContent += `
+                        <!-- Gas Bubbles Animation -->
+                        <circle cx="160" cy="${yPos}" r="3" fill="#a855f7" class="animated-bubble"/>
+                        <circle cx="155" cy="${yPos + 10}" r="2.5" fill="#a855f7" class="animated-bubble-2"/>
+                        <circle cx="165" cy="${yPos + 20}" r="3.5" fill="#a855f7" class="animated-bubble-3"/>
+                        <text x="25" y="${yPos + 4}" fill="#a855f7" font-size="10" font-weight="bold">Dinj Point</text>
+                    `;
+                }
+            });
+
+            svg.innerHTML = svgContent;
+        }
+
+        // Multi-Well Allocation Optimizer Engine
+        function runMultiWellOptimization() {
+            const Qtotal = getVal('inp_total_gas');
+
+            const wellA = { Pr: getVal('wellA_Pr'), J: getVal('wellA_J'), WC: 30, TD: 8000, Dinj: 6500, Pwh: 120, gff: 0.32 };
+            const wellB = { Pr: getVal('wellB_Pr'), J: getVal('wellB_J'), WC: 45, TD: 8000, Dinj: 6000, Pwh: 120, gff: 0.32 };
+            const wellC = { Pr: getVal('wellC_Pr'), J: getVal('wellC_J'), WC: 60, TD: 8000, Dinj: 5500, Pwh: 120, gff: 0.32 };
+
+            let qgiA = 0, qgiB = 0, qgiC = 0;
+            let step = 25;
+
+            // Discrete Marginal Gain Optimization Loop
+            for (let q = 0; q < Qtotal; q += step) {
+                let gainA = calculateQoFromQgi(qgiA + step, wellA.Pr, wellA.J, wellA.WC, wellA.TD, wellA.Dinj, wellA.Pwh, wellA.gff) - calculateQoFromQgi(qgiA, wellA.Pr, wellA.J, wellA.WC, wellA.TD, wellA.Dinj, wellA.Pwh, wellA.gff);
+                let gainB = calculateQoFromQgi(qgiB + step, wellB.Pr, wellB.J, wellB.WC, wellB.TD, wellB.Dinj, wellB.Pwh, wellB.gff) - calculateQoFromQgi(qgiB, wellB.Pr, wellB.J, wellB.WC, wellB.TD, wellB.Dinj, wellB.Pwh, wellB.gff);
+                let gainC = calculateQoFromQgi(qgiC + step, wellC.Pr, wellC.J, wellC.WC, wellC.TD, wellC.Dinj, wellC.Pwh, wellC.gff) - calculateQoFromQgi(qgiC, wellC.Pr, wellC.J, wellC.WC, wellC.TD, wellC.Dinj, wellC.Pwh, wellC.gff);
+
+                if (gainA >= gainB && gainA >= gainC && gainA > 0) {
+                    qgiA += step;
+                } else if (gainB >= gainA && gainB >= gainC && gainB > 0) {
+                    qgiB += step;
+                } else if (gainC > 0) {
+                    qgiC += step;
+                } else {
+                    qgiA += step; // Default distribution if max peak is reached
+                }
+            }
+
+            let qoA = Math.round(calculateQoFromQgi(qgiA, wellA.Pr, wellA.J, wellA.WC, wellA.TD, wellA.Dinj, wellA.Pwh, wellA.gff));
+            let qoB = Math.round(calculateQoFromQgi(qgiB, wellB.Pr, wellB.J, wellB.WC, wellB.TD, wellB.Dinj, wellB.Pwh, wellB.gff));
+            let qoC = Math.round(calculateQoFromQgi(qgiC, wellC.Pr, wellC.J, wellC.WC, wellC.TD, wellC.Dinj, wellC.Pwh, wellC.gff));
+
+            document.getElementById('allocA_qgi').innerText = qgiA + ' Mscf/d';
+            document.getElementById('allocA_qo').innerText = qoA + ' BOPD';
+
+            document.getElementById('allocB_qgi').innerText = qgiB + ' Mscf/d';
+            document.getElementById('allocB_qo').innerText = qoB + ' BOPD';
+
+            document.getElementById('allocC_qgi').innerText = qgiC + ' Mscf/d';
+            document.getElementById('allocC_qo').innerText = qoC + ' BOPD';
+
+            document.getElementById('multiwell_total_qo').innerText = (qoA + qoB + qoC) + ' BOPD';
+        }
+
+        // Reset to Default Values
+        function resetDefaults() {
+            document.getElementById('inp_Pr').value = 2800;
+            document.getElementById('inp_J').value = 1.8;
+            document.getElementById('inp_WC').value = 45;
+            document.getElementById('inp_TD').value = 8000;
+            document.getElementById('inp_Pko').value = 1050;
+            document.getElementById('inp_Pso').value = 950;
+            document.getElementById('inp_Pwh').value = 120;
+            document.getElementById('inp_Qgi').value = 850;
+            document.getElementById('inp_gfs').value = 0.465;
+            document.getElementById('inp_gff').value = 0.320;
+            document.getElementById('inp_ggas').value = 0.022;
+            document.getElementById('inp_dpvalve').value = 50;
+            updateAllCalculations();
+        }
+
+        // Print/Export Report Trigger
+        function exportReport() {
+            window.print();
+        }
+    </script>
+</body>
+</html>
