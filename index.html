@@ -1038,9 +1038,9 @@
                 type: 'line',
                 data: {
                     datasets: [
-                        { label: 'Casing Pressure Traverse', data: [], borderColor: '#f59e0b', borderWidth: 2, tension: 0 },
-                        { label: 'Unloading Tubing Traverse', data: [], borderColor: '#38bdf8', borderWidth: 2, tension: 0 },
-                        { label: 'Flowing Tubing Traverse', data: [], borderColor: '#10b981', borderWidth: 2, tension: 0 }
+                        { label: 'Casing Pressure Traverse', data: [], borderColor: '#f59e0b', borderWidth: 2, tension: 0.1, pointRadius: 0 },
+                        { label: 'Unloading Tubing Traverse', data: [], borderColor: '#38bdf8', borderWidth: 2, tension: 0.1, pointRadius: 0 },
+                        { label: 'Flowing Tubing Traverse', data: [], borderColor: '#10b981', borderWidth: 2.5, tension: 0.1, pointRadius: 0 }
                     ]
                 },
                 options: {
@@ -1048,13 +1048,15 @@
                     maintainAspectRatio: false,
                     scales: {
                         x: {
+                            type: 'linear',
                             title: { display: true, text: 'Tekanan / Pressure (psi)', color: '#94a3b8' },
                             grid: { color: '#1e293b' },
                             ticks: { color: '#94a3b8' }
                         },
                         y: {
+                            type: 'linear',
                             title: { display: true, text: 'Kedalaman / Depth (ft)', color: '#94a3b8' },
-                            reverse: true, // Inverted Y Axis for well depth
+                            reverse: true, // Inverted Y Axis for well depth (0 ft at top)
                             grid: { color: '#1e293b' },
                             ticks: { color: '#94a3b8' }
                         }
@@ -1071,9 +1073,9 @@
                 type: 'line',
                 data: {
                     datasets: [
-                        { label: 'IPR Curve (Vogel Model)', data: [], borderColor: '#a855f7', borderWidth: 3, tension: 0.2 },
-                        { label: 'VLP (Operating Qgi)', data: [], borderColor: '#38bdf8', borderWidth: 2.5, tension: 0.1 },
-                        { label: 'VLP (Unassisted Natural Flow)', data: [], borderColor: '#64748b', borderWidth: 1.5, borderDash: [5, 5], tension: 0.1 }
+                        { label: 'IPR Curve (Vogel Model)', data: [], borderColor: '#a855f7', borderWidth: 3, tension: 0.3, pointRadius: 0 },
+                        { label: 'VLP (Operating Qgi)', data: [], borderColor: '#38bdf8', borderWidth: 2.5, tension: 0.3, pointRadius: 0 },
+                        { label: 'VLP (Unassisted Natural Flow)', data: [], borderColor: '#64748b', borderWidth: 1.5, borderDash: [5, 5], tension: 0.3, pointRadius: 0 }
                     ]
                 },
                 options: {
@@ -1081,11 +1083,13 @@
                     maintainAspectRatio: false,
                     scales: {
                         x: {
+                            type: 'linear',
                             title: { display: true, text: 'Laju Alir Fluida Qliquid (STB/d)', color: '#94a3b8' },
                             grid: { color: '#1e293b' },
                             ticks: { color: '#94a3b8' }
                         },
                         y: {
+                            type: 'linear',
                             title: { display: true, text: 'Flowing Bottomhole Pressure Pwf (psi)', color: '#94a3b8' },
                             grid: { color: '#1e293b' },
                             ticks: { color: '#94a3b8' }
@@ -1107,36 +1111,95 @@
 
         // Render Traverse Curve Data
         function renderTraverseChart(Pko, Pso, Pwh, gfs, gff, ggas, Dinj, TD, valves) {
-            // Casing Line Points
-            const casingData = [
-                { x: Pko, y: 0 },
-                { x: Math.round(Pko + ggas * Dinj), y: Math.round(Dinj) },
-                { x: Math.round(Pko + ggas * TD), y: Math.round(TD) }
-            ];
+            const casingData = [];
+            const unloadingData = [];
+            const flowingData = [];
 
-            // Unloading Tubing Line Points
-            const unloadingData = [
-                { x: Pwh, y: 0 },
-                { x: Math.round(Pwh + gfs * TD), y: Math.round(TD) }
-            ];
+            let QgiOp = getVal('inp_Qgi');
+            let liftEffect = 1 / (1 + 0.0035 * Math.pow(QgiOp, 0.85));
+            let g_lifted = Math.max(0.08, gff * liftEffect);
 
-            // Flowing Tubing Line Points (kink at Dinj)
-            let liftEffect = 0.55; // gas lift lighter gradient above Dinj
-            let g_lifted = gff * liftEffect;
+            // Generate multi-point depth traverse profile (from depth 0 to TD)
+            for (let d = 0; d <= TD; d += 100) {
+                // Casing Pressure Traverse
+                let Pc = Pso + ggas * d;
+                casingData.push({ x: Math.round(Pc), y: d });
 
-            let Pt_dinj = Pwh + g_lifted * Dinj;
-            let Pt_td = Pt_dinj + gff * (TD - Dinj);
+                // Unloading Tubing Traverse (Static kill fluid)
+                let Ptu = Pwh + gfs * d;
+                unloadingData.push({ x: Math.round(Ptu), y: d });
 
-            const flowingData = [
-                { x: Pwh, y: 0 },
-                { x: Math.round(Pt_dinj), y: Math.round(Dinj) },
-                { x: Math.round(Pt_td), y: Math.round(TD) }
-            ];
+                // Flowing Tubing Traverse (Inflection/kink at Dinj)
+                let Ptf = 0;
+                if (d <= Dinj) {
+                    Ptf = Pwh + g_lifted * d;
+                } else {
+                    let Ptf_inj = Pwh + g_lifted * Dinj;
+                    Ptf = Ptf_inj + gff * (d - Dinj);
+                }
+                flowingData.push({ x: Math.round(Ptf), y: d });
+            }
 
             chartTraverseInstance.data.datasets[0].data = casingData;
             chartTraverseInstance.data.datasets[1].data = unloadingData;
             chartTraverseInstance.data.datasets[2].data = flowingData;
             chartTraverseInstance.update();
+        }
+
+        // Render Dynamic Nodal Analysis
+        function renderNodalChart(Pr, J, WC, TD, Dinj, Pwh, gff, QgiOp) {
+            const iprData = [];
+            const vlpData = [];
+            const vlpNaturalData = [];
+
+            let Qmax = (J * Pr) / 1.8;
+
+            // 1. Generate IPR Curve (Vogel Model: Ql vs Pwf)
+            for (let pwf = 0; pwf <= Pr; pwf += 50) {
+                let ql = Qmax * (1 - 0.2 * (pwf / Pr) - 0.8 * Math.pow(pwf / Pr, 2));
+                if (ql < 0) ql = 0;
+                iprData.push({ x: Math.round(ql), y: pwf });
+            }
+
+            // Sort IPR points by X ascending for Chart.js rendering
+            iprData.sort((a, b) => a.x - b.x);
+
+            // 2. Generate VLP Curves (Gas Lift & Natural Flow)
+            let liftEffect = 1 / (1 + 0.0035 * Math.pow(QgiOp, 0.85));
+            let glift = Math.max(0.08, gff * liftEffect);
+            let Pstatic = Pwh + glift * Dinj + gff * (TD - Dinj);
+            let Pstatic_nat = Pwh + gff * TD;
+
+            let closestQ = 0;
+            let closestPwf = 0;
+            let minDiff = 999999;
+
+            let maxX = Qmax > 0 ? Qmax * 1.15 : 3000;
+            for (let ql = 0; ql <= maxX; ql += 50) {
+                // Multiphase friction loss term
+                let Pfriction = 0.00012 * Math.pow(ql, 1.55);
+                let pwf_lift = Pstatic + Pfriction;
+                vlpData.push({ x: Math.round(ql), y: Math.round(pwf_lift) });
+
+                let Pfriction_nat = 0.00022 * Math.pow(ql, 1.55);
+                let pwf_nat = Pstatic_nat + Pfriction_nat;
+                vlpNaturalData.push({ x: Math.round(ql), y: Math.round(pwf_nat) });
+
+                // Find intersection between IPR & VLP
+                let pwf_ipr = Pr * (Math.sqrt(0.04 + 3.2 * (1 - ql / Qmax)) - 0.2) / 1.6;
+                if (!isNaN(pwf_ipr) && Math.abs(pwf_ipr - pwf_lift) < minDiff) {
+                    minDiff = Math.abs(pwf_ipr - pwf_lift);
+                    closestQ = Math.round(ql * (1 - WC / 100));
+                    closestPwf = Math.round(pwf_lift);
+                }
+            }
+
+            chartNodalInstance.data.datasets[0].data = iprData;
+            chartNodalInstance.data.datasets[1].data = vlpData;
+            chartNodalInstance.data.datasets[2].data = vlpNaturalData;
+            chartNodalInstance.update();
+
+            document.getElementById('nodal_op_point').innerText = `${closestQ} BOPD @ ${closestPwf} psi`;
         }
 
         // Render Dynamic Nodal Analysis
